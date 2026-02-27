@@ -1,2 +1,2 @@
 [deploy]
-startCommand = "export N8N_PORT=$PORT && pnpm start"
+startCommand = "pnpm start"
