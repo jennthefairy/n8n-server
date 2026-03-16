@@ -1,0 +1,93 @@
+{
+  "name": "PageFairy — Admin Approval (Campaign Created)",
+  "nodes": [
+    {
+      "id": "aa-01-webhook",
+      "name": "Campaign For Review Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "path": "campaign-for-review",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "notes": "Called by Hono after campaign record is created in Airtable with status=pending_approval. Expected body: { campaign_id, campaign_name, username, product_name, wholesale_cost, retail_price, goal_units, tech_chat_id, tech_record_id }"
+    },
+    {
+      "id": "aa-02-patch-pending",
+      "name": "Set Campaign Pending Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS/{{$json.body.campaign_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{$env.AIRTABLE_TOKEN}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\"fields\":{\"status\":\"pending_approval\"}}"
+      }
+    },
+    {
+      "id": "aa-03-build-admin-msg",
+      "name": "Build Admin Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "parameters": {
+        "jsCode": "const d = $('Campaign For Review Webhook').first().json.body;\nconst retail = parseFloat(d.retail_price ?? 0);\nconst wholesale = parseFloat(d.wholesale_cost ?? 0);\nconst profit = (retail - wholesale).toFixed(2);\n\nconst message = `*NEW CAMPAIGN REQUEST*\n\nTech: @${d.username}\nProduct: ${d.product_name}\nWholesale: $${parseFloat(d.wholesale_cost).toFixed(2)}\nRetail: $${parseFloat(d.retail_price).toFixed(2)}\nProfit/unit: $${profit}\nGoal: ${d.goal_units} units\nLink: pagefairy.me/${d.username}`;\n\nconst inline_keyboard = [[\n  { text: '✅ Approve', callback_data: `approve_${d.campaign_id}` },\n  { text: '❌ Reject', callback_data: `reject_${d.campaign_id}` }\n]];\n\nreturn [{ json: { message, inline_keyboard, campaign_id: d.campaign_id } }];"
+      }
+    },
+    {
+      "id": "aa-04-send-admin",
+      "name": "Send Admin Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 300],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {
+          "parseMode": "Markdown",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "values": "={{$json.inline_keyboard}}"
+          }
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-cred-id",
+          "name": "PageFairy Telegram"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Campaign For Review Webhook": {
+      "main": [[{ "node": "Set Campaign Pending Approval", "type": "main", "index": 0 }]]
+    },
+    "Set Campaign Pending Approval": {
+      "main": [[{ "node": "Build Admin Notification", "type": "main", "index": 0 }]]
+    },
+    "Build Admin Notification": {
+      "main": [[{ "node": "Send Admin Notification", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "notes": "PART 1 of admin approval flow. Sends notification to admin with Approve/Reject inline keyboard. PART 2 (callback handling — approve_* and reject_*) is in onboarding-flow.json, which handles all incoming Telegram updates including admin callback queries. Requires env vars: AIRTABLE_BASE_ID, AIRTABLE_TOKEN, TELEGRAM_ADMIN_CHAT_ID. Requires n8n credential: PageFairy Telegram."
+}
