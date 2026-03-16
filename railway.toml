@@ -1,2 +1,5 @@
 [deploy]
-startCommand = "N8N_PORT=${PORT:-5678} pnpm start"
+startCommand = "node dist/index.js"
+
+[build]
+buildCommand = "npm run build"
