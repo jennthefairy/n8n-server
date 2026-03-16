@@ -11,12 +11,12 @@
         300
       ],
       "parameters": {
-        "path": "pagefairy-bot",
+        "path": "telegram-webhook",
         "httpMethod": "POST",
         "responseMode": "onReceived",
         "responseData": "allEntries"
       },
-      "notes": "Set this as the Telegram webhook URL: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/pagefairy-bot"
+      "notes": "Set this as the Telegram webhook URL: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/telegram-webhook"
     },
     {
       "id": "ob-02-parse",
@@ -224,7 +224,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -264,7 +264,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -319,7 +319,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -374,7 +374,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -486,7 +486,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -511,7 +511,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -637,7 +637,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -724,7 +724,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -790,7 +790,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -999,7 +999,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -1024,7 +1024,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -1079,7 +1079,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -1222,7 +1222,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -1261,7 +1261,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1287,7 +1287,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1313,7 +1313,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1339,7 +1339,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1365,7 +1365,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1391,7 +1391,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1848,5 +1848,5 @@
     "executionOrder": "v1"
   },
   "tags": [],
-  "notes": "Main Telegram bot entry point. Set Telegram webhook to: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/pagefairy-bot. Handles: /start (new user onboarding with username capture + returning user dashboard), text messages (username capture flow), admin approval callbacks (approve_* / reject_*). SCHEMA NOTE: USERS table requires a `bot_state` Text field (values: 'new' | 'awaiting_username' | 'active'). Add this field before activating. Requires env vars: AIRTABLE_BASE_ID, AIRTABLE_TOKEN, TELEGRAM_ADMIN_CHAT_ID. Requires n8n credential: PageFairy Telegram (stores TELEGRAM_BOT_TOKEN)."
+  "notes": "Main Telegram bot entry point. Set Telegram webhook to: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/telegram-webhook. Handles: /start (new user onboarding with username capture + returning user dashboard), text messages (username capture flow), admin approval callbacks (approve_* / reject_*). SCHEMA NOTE: USERS table requires a `bot_state` Text field (values: 'new' | 'awaiting_username' | 'active'). Add this field before activating. Requires env vars: AIRTABLE_BASE_ID, AIRTABLE_TOKEN, TELEGRAM_ADMIN_CHAT_ID. Requires n8n credential: PageFairy Telegram (stores TELEGRAM_BOT_TOKEN)."
 }
