@@ -1,5 +1,5 @@
 {
-  "name": "PageFairy Bot — Onboarding & Dispatch",
+  "name": "PageFairy Bot \u2014 Onboarding & Dispatch",
   "nodes": [
     {
       "id": "ob-01-webhook",
@@ -11,12 +11,12 @@
         300
       ],
       "parameters": {
-        "path": "pagefairy-bot",
+        "path": "telegram-webhook",
         "httpMethod": "POST",
         "responseMode": "onReceived",
         "responseData": "allEntries"
       },
-      "notes": "Set this as the Telegram webhook URL: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/pagefairy-bot"
+      "notes": "Set this as the Telegram webhook URL: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/telegram-webhook"
     },
     {
       "id": "ob-02-parse",
@@ -206,7 +206,7 @@
     },
     {
       "id": "ob-07-msg1",
-      "name": "Send Message 1 — Value Prop",
+      "name": "Send Message 1 \u2014 Value Prop",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -217,14 +217,14 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$('Parse Update').first().json.chat_id}}",
-        "text": "=Hey {{$('Parse Update').first().json.first_name}}! 👋\n\nI'm PageFairy — your secret weapon for selling lash products without buying inventory first.\n\n💡 Here's the magic: You pick a product, set YOUR price, share with clients, and we ship directly to them. You pocket the profit.\n\nNo upfront cost. No risk. Just sales.",
+        "text": "=Hey {{$('Parse Update').first().json.first_name}}! \ud83d\udc4b\n\nI'm PageFairy \u2014 your secret weapon for selling lash products without buying inventory first.\n\n\ud83d\udca1 Here's the magic: You pick a product, set YOUR price, share with clients, and we ship directly to them. You pocket the profit.\n\nNo upfront cost. No risk. Just sales.",
         "additionalFields": {
           "parseMode": "Markdown"
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -246,7 +246,7 @@
     },
     {
       "id": "ob-09-msg2",
-      "name": "Send Message 2 — Profit Example",
+      "name": "Send Message 2 \u2014 Profit Example",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -257,14 +257,14 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$('Parse Update').first().json.chat_id}}",
-        "text": "📊 *Quick Example:*\n\nMink Lash Set\n• Our price: $12\n• You sell at: $28\n• You keep: $16 profit\n\nSell 20 sets = $320 in your pocket\n\nAnd you never touch the product! ✨",
+        "text": "\ud83d\udcca *Quick Example:*\n\nMink Lash Set\n\u2022 Our price: $12\n\u2022 You sell at: $28\n\u2022 You keep: $16 profit\n\nSell 20 sets = $320 in your pocket\n\nAnd you never touch the product! \u2728",
         "additionalFields": {
           "parseMode": "Markdown"
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -286,7 +286,7 @@
     },
     {
       "id": "ob-11-msg3",
-      "name": "Send Message 3 — CTA",
+      "name": "Send Message 3 \u2014 CTA",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -305,11 +305,11 @@
             "values": [
               [
                 {
-                  "text": "👀 Show Me Products",
+                  "text": "\ud83d\udc40 Show Me Products",
                   "callbackData": "browse_products"
                 },
                 {
-                  "text": "🤔 How does this work?",
+                  "text": "\ud83e\udd14 How does this work?",
                   "callbackData": "how_it_works"
                 }
               ]
@@ -319,7 +319,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -367,14 +367,14 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$('Parse Update').first().json.chat_id}}",
-        "text": "Before we get started — let's claim your link! 🔗\n\nWhat's your brand name?\n(This becomes pagefairy.me/_____)\n\nType it now (letters and numbers only, no spaces):",
+        "text": "Before we get started \u2014 let's claim your link! \ud83d\udd17\n\nWhat's your brand name?\n(This becomes pagefairy.me/_____)\n\nType it now (letters and numbers only, no spaces):",
         "additionalFields": {
           "parseMode": "Markdown"
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -459,7 +459,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const user = $('Lookup User (/start)').first().json.records[0].fields;\nconst campaigns = $('Fetch Tech Campaigns').first().json.records ?? [];\nconst firstName = $('Parse Update').first().json.first_name;\n\nlet message;\nlet keyboard;\n\nif (campaigns.length > 0) {\n  const lines = campaigns.map(c => {\n    const f = c.fields;\n    const pct = f.goal_units > 0 ? Math.round((f.current_units / f.goal_units) * 100) : 0;\n    return `• ${f.name ?? 'Campaign'}: ${f.current_units ?? 0}/${f.goal_units ?? 0} (${pct}%)`;\n  }).join('\\n');\n  message = `Welcome back, ${firstName}! ✨\\n\\n📊 You have ${campaigns.length} active campaign${campaigns.length > 1 ? 's' : ''}:\\n\\n${lines}\\n\\nWhat would you like to do?`;\n  keyboard = [[{\n    text: '📊 Campaign Dashboard',\n    callback_data: 'dashboard'\n  }, {\n    text: '🚀 Start New Campaign',\n    callback_data: 'start_campaign'\n  }], [{\n    text: '🤖 Ask AI for Help',\n    callback_data: 'ask_ai'\n  }]];\n} else {\n  message = `Welcome back, ${firstName}! ✨\\n\\nYou don't have any active campaigns yet.\\n\\nStart one today!`;\n  keyboard = [[{\n    text: '🚀 Start First Campaign',\n    callback_data: 'start_campaign'\n  }, {\n    text: '👀 Browse Products',\n    callback_data: 'browse_products'\n  }], [{\n    text: '🤖 Ask AI',\n    callback_data: 'ask_ai'\n  }]];\n}\n\nreturn [{ json: { chat_id: $('Parse Update').first().json.chat_id, message, keyboard } }];"
+        "jsCode": "const user = $('Lookup User (/start)').first().json.records[0].fields;\nconst campaigns = $('Fetch Tech Campaigns').first().json.records ?? [];\nconst firstName = $('Parse Update').first().json.first_name;\n\nlet message;\nlet keyboard;\n\nif (campaigns.length > 0) {\n  const lines = campaigns.map(c => {\n    const f = c.fields;\n    const pct = f.goal_units > 0 ? Math.round((f.current_units / f.goal_units) * 100) : 0;\n    return `\u2022 ${f.name ?? 'Campaign'}: ${f.current_units ?? 0}/${f.goal_units ?? 0} (${pct}%)`;\n  }).join('\\n');\n  message = `Welcome back, ${firstName}! \u2728\\n\\n\ud83d\udcca You have ${campaigns.length} active campaign${campaigns.length > 1 ? 's' : ''}:\\n\\n${lines}\\n\\nWhat would you like to do?`;\n  keyboard = [[{\n    text: '\ud83d\udcca Campaign Dashboard',\n    callback_data: 'dashboard'\n  }, {\n    text: '\ud83d\ude80 Start New Campaign',\n    callback_data: 'start_campaign'\n  }], [{\n    text: '\ud83e\udd16 Ask AI for Help',\n    callback_data: 'ask_ai'\n  }]];\n} else {\n  message = `Welcome back, ${firstName}! \u2728\\n\\nYou don't have any active campaigns yet.\\n\\nStart one today!`;\n  keyboard = [[{\n    text: '\ud83d\ude80 Start First Campaign',\n    callback_data: 'start_campaign'\n  }, {\n    text: '\ud83d\udc40 Browse Products',\n    callback_data: 'browse_products'\n  }], [{\n    text: '\ud83e\udd16 Ask AI',\n    callback_data: 'ask_ai'\n  }]];\n}\n\nreturn [{ json: { chat_id: $('Parse Update').first().json.chat_id, message, keyboard } }];"
       }
     },
     {
@@ -486,7 +486,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -504,14 +504,14 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$('Parse Update').first().json.chat_id}}",
-        "text": "Before we get started — let's claim your link! 🔗\n\nWhat's your brand name?\n(This becomes pagefairy.me/_____)\n\nType it now (letters and numbers only, no spaces):",
+        "text": "Before we get started \u2014 let's claim your link! \ud83d\udd17\n\nWhat's your brand name?\n(This becomes pagefairy.me/_____)\n\nType it now (letters and numbers only, no spaces):",
         "additionalFields": {
           "parseMode": "Markdown"
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -630,14 +630,14 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$json.chat_id}}",
-        "text": "That name doesn't work. Please use only letters and numbers (3–32 characters, no spaces).\n\nTry again:",
+        "text": "That name doesn't work. Please use only letters and numbers (3\u201332 characters, no spaces).\n\nTry again:",
         "additionalFields": {
           "parseMode": "Markdown"
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -724,7 +724,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -772,7 +772,7 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$('Validate Username').first().json.chat_id}}",
-        "text": "=✅ *Your page is live!*\n\n🔗 pagefairy.me/{{$('Validate Username').first().json.username}}\n\nAdd this to your Instagram bio — it updates automatically when you launch a campaign.\n\nNow let's find your first product!",
+        "text": "=\u2705 *Your page is live!*\n\n\ud83d\udd17 pagefairy.me/{{$('Validate Username').first().json.username}}\n\nAdd this to your Instagram bio \u2014 it updates automatically when you launch a campaign.\n\nNow let's find your first product!",
         "additionalFields": {
           "parseMode": "Markdown",
           "replyMarkup": "inlineKeyboard",
@@ -780,7 +780,7 @@
             "values": [
               [
                 {
-                  "text": "👀 Browse Products",
+                  "text": "\ud83d\udc40 Browse Products",
                   "callbackData": "browse_products"
                 }
               ]
@@ -790,7 +790,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -966,7 +966,7 @@
     },
     {
       "id": "ob-35-dm-approved",
-      "name": "DM Tech — Campaign Approved",
+      "name": "DM Tech \u2014 Campaign Approved",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -977,7 +977,7 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$('Fetch Tech User for Approval').first().json.fields.telegram_chat_id}}",
-        "text": "=🎉 *Campaign Approved!*\n\nYour campaign is LIVE:\n🔗 pagefairy.me/{{$('Fetch Tech User for Approval').first().json.fields.username}}\n\nShare this link with your clients to start collecting pre-orders!",
+        "text": "=\ud83c\udf89 *Campaign Approved!*\n\nYour campaign is LIVE:\n\ud83d\udd17 pagefairy.me/{{$('Fetch Tech User for Approval').first().json.fields.username}}\n\nShare this link with your clients to start collecting pre-orders!",
         "additionalFields": {
           "parseMode": "Markdown",
           "replyMarkup": "inlineKeyboard",
@@ -985,11 +985,11 @@
             "values": [
               [
                 {
-                  "text": "📤 Share Link",
+                  "text": "\ud83d\udce4 Share Link",
                   "callbackData": "share_link"
                 },
                 {
-                  "text": "📊 View Stats",
+                  "text": "\ud83d\udcca View Stats",
                   "callbackData": "dashboard"
                 }
               ]
@@ -999,14 +999,14 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
     },
     {
       "id": "ob-36-answer-approve",
-      "name": "Answer Callback — Approved",
+      "name": "Answer Callback \u2014 Approved",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -1018,13 +1018,13 @@
         "operation": "answerQuery",
         "queryId": "={{$('Parse Callback Data').first().json.callback_id}}",
         "additionalFields": {
-          "text": "✅ Campaign approved and tech notified",
+          "text": "\u2705 Campaign approved and tech notified",
           "showAlert": false
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -1061,7 +1061,7 @@
     },
     {
       "id": "ob-38-dm-rejected",
-      "name": "DM Tech — Campaign Rejected",
+      "name": "DM Tech \u2014 Campaign Rejected",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -1079,7 +1079,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -1174,7 +1174,7 @@
     },
     {
       "id": "ob-42-write-audit-log",
-      "name": "Write AUDIT_LOGS — Flagged",
+      "name": "Write AUDIT_LOGS \u2014 Flagged",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
@@ -1204,7 +1204,7 @@
     },
     {
       "id": "ob-43-answer-reject",
-      "name": "Answer Callback — Rejected",
+      "name": "Answer Callback \u2014 Rejected",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -1216,13 +1216,13 @@
         "operation": "answerQuery",
         "queryId": "={{$('Parse Callback Data').first().json.callback_id}}",
         "additionalFields": {
-          "text": "❌ Campaign rejected and tech notified",
+          "text": "\u274c Campaign rejected and tech notified",
           "showAlert": false
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       }
@@ -1237,9 +1237,9 @@
         700
       ],
       "parameters": {
-        "jsCode": "// pf-ops.txt exact copy strings — DO NOT paraphrase or modify.\n// Referenced by downstream nodes in this workflow.\nreturn [{ json: {\n  rateLimit: \"You have reached today's limit. Upgrade to Magic Wand+ for priority access.\",\n  bioSanitize: \"Please use plain text only — no links or hashtags.\",\n  rejection: \"We need a little more detail to get this right. Please update here: [Link]\",\n  t120patience: \"High demand today — your kit will be ready shortly. Thank you for your patience 🧚 \",\n  upsell: \"Order confirmed! 📦 Want us to build your PageFairy brand setup while you wait? Reply MAGIC to add Magic Wand+ for $99.\",\n  soldOut: \"This drop is sold out. Type NOTIFY to join the waitlist.\",\n  expiredLink: \"That link has expired. Type REJOIN to request a new one.\",\n  selfReferral: \"Referral not eligible — self-referrals don't count.\",\n  cashoutReceived: \"Request received — review takes up to 48 hours. We'll notify you here when it's approved.\"\n} }];"
+        "jsCode": "// pf-ops.txt exact copy strings \u2014 DO NOT paraphrase or modify.\n// Referenced by downstream nodes in this workflow.\nreturn [{ json: {\n  rateLimit: \"You have reached today's limit. Upgrade to Magic Wand+ for priority access.\",\n  bioSanitize: \"Please use plain text only \u2014 no links or hashtags.\",\n  rejection: \"We need a little more detail to get this right. Please update here: [Link]\",\n  t120patience: \"High demand today \u2014 your kit will be ready shortly. Thank you for your patience \ud83e\uddda \",\n  upsell: \"Order confirmed! \ud83d\udce6 Want us to build your PageFairy brand setup while you wait? Reply MAGIC to add Magic Wand+ for $99.\",\n  soldOut: \"This drop is sold out. Type NOTIFY to join the waitlist.\",\n  expiredLink: \"That link has expired. Type REJOIN to request a new one.\",\n  selfReferral: \"Referral not eligible \u2014 self-referrals don't count.\",\n  cashoutReceived: \"Request received \u2014 review takes up to 48 hours. We'll notify you here when it's approved.\"\n} }];"
       },
-      "notes": "Exact copy strings from pf-ops.txt. Values here are ground truth — downstream message nodes must use these via $('pf-ops Exact Copy Strings').first().json.<key>"
+      "notes": "Exact copy strings from pf-ops.txt. Values here are ground truth \u2014 downstream message nodes must use these via $('pf-ops Exact Copy Strings').first().json.<key>"
     },
     {
       "id": "ob-45-rate-limit",
@@ -1261,7 +1261,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1287,7 +1287,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1313,7 +1313,7 @@
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1332,14 +1332,14 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$json.chat_id}}",
-        "text": "Referral not eligible — self-referrals don't count.",
+        "text": "Referral not eligible \u2014 self-referrals don't count.",
         "additionalFields": {
           "parseMode": "Markdown"
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1358,14 +1358,14 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$json.chat_id}}",
-        "text": "Request received — review takes up to 48 hours. We'll notify you here when it's approved.",
+        "text": "Request received \u2014 review takes up to 48 hours. We'll notify you here when it's approved.",
         "additionalFields": {
           "parseMode": "Markdown"
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1384,14 +1384,14 @@
         "resource": "message",
         "operation": "sendMessage",
         "chatId": "={{$json.chat_id}}",
-        "text": "Please use plain text only — no links or hashtags.",
+        "text": "Please use plain text only \u2014 no links or hashtags.",
         "additionalFields": {
           "parseMode": "Markdown"
         }
       },
       "credentials": {
         "telegramApi": {
-          "id": "telegram-cred-id",
+          "id": "UGLWeGeWdfDmcHzG",
           "name": "PageFairy Telegram"
         }
       },
@@ -1519,14 +1519,14 @@
       "main": [
         [
           {
-            "node": "Send Message 1 — Value Prop",
+            "node": "Send Message 1 \u2014 Value Prop",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Message 1 — Value Prop": {
+    "Send Message 1 \u2014 Value Prop": {
       "main": [
         [
           {
@@ -1541,14 +1541,14 @@
       "main": [
         [
           {
-            "node": "Send Message 2 — Profit Example",
+            "node": "Send Message 2 \u2014 Profit Example",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Message 2 — Profit Example": {
+    "Send Message 2 \u2014 Profit Example": {
       "main": [
         [
           {
@@ -1563,14 +1563,14 @@
       "main": [
         [
           {
-            "node": "Send Message 3 — CTA",
+            "node": "Send Message 3 \u2014 CTA",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Message 3 — CTA": {
+    "Send Message 3 \u2014 CTA": {
       "main": [
         [
           {
@@ -1751,18 +1751,18 @@
       "main": [
         [
           {
-            "node": "DM Tech — Campaign Approved",
+            "node": "DM Tech \u2014 Campaign Approved",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DM Tech — Campaign Approved": {
+    "DM Tech \u2014 Campaign Approved": {
       "main": [
         [
           {
-            "node": "Answer Callback — Approved",
+            "node": "Answer Callback \u2014 Approved",
             "type": "main",
             "index": 0
           }
@@ -1773,14 +1773,14 @@
       "main": [
         [
           {
-            "node": "DM Tech — Campaign Rejected",
+            "node": "DM Tech \u2014 Campaign Rejected",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DM Tech — Campaign Rejected": {
+    "DM Tech \u2014 Campaign Rejected": {
       "main": [
         [
           {
@@ -1813,7 +1813,7 @@
         ],
         [
           {
-            "node": "Answer Callback — Rejected",
+            "node": "Answer Callback \u2014 Rejected",
             "type": "main",
             "index": 0
           }
@@ -1824,18 +1824,18 @@
       "main": [
         [
           {
-            "node": "Write AUDIT_LOGS — Flagged",
+            "node": "Write AUDIT_LOGS \u2014 Flagged",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Write AUDIT_LOGS — Flagged": {
+    "Write AUDIT_LOGS \u2014 Flagged": {
       "main": [
         [
           {
-            "node": "Answer Callback — Rejected",
+            "node": "Answer Callback \u2014 Rejected",
             "type": "main",
             "index": 0
           }
@@ -1848,5 +1848,5 @@
     "executionOrder": "v1"
   },
   "tags": [],
-  "notes": "Main Telegram bot entry point. Set Telegram webhook to: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/pagefairy-bot. Handles: /start (new user onboarding with username capture + returning user dashboard), text messages (username capture flow), admin approval callbacks (approve_* / reject_*). SCHEMA NOTE: USERS table requires a `bot_state` Text field (values: 'new' | 'awaiting_username' | 'active'). Add this field before activating. Requires env vars: AIRTABLE_BASE_ID, AIRTABLE_TOKEN, TELEGRAM_ADMIN_CHAT_ID. Requires n8n credential: PageFairy Telegram (stores TELEGRAM_BOT_TOKEN)."
+  "notes": "Main Telegram bot entry point. Set Telegram webhook to: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/telegram-webhook. Handles: /start (new user onboarding with username capture + returning user dashboard), text messages (username capture flow), admin approval callbacks (approve_* / reject_*). SCHEMA NOTE: USERS table requires a `bot_state` Text field (values: 'new' | 'awaiting_username' | 'active'). Add this field before activating. Requires env vars: AIRTABLE_BASE_ID, AIRTABLE_TOKEN, TELEGRAM_ADMIN_CHAT_ID. Requires n8n credential: PageFairy Telegram (stores TELEGRAM_BOT_TOKEN)."
 }
