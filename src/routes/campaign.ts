@@ -26,5 +26,7 @@ export async function renderCampaignPage(c: Context): Promise<Response> {
   );
   if (!matched) return render404Page(c, `${username}/${slug}`);
 
-  return renderCampaignPageDirect(c, user, matched);
+  const ref = sanitizeParam(c.req.query('ref') || '');
+  if (ref) c.header('Set-Cookie', `pf_ref=${ref}; Path=/; Max-Age=86400; SameSite=Lax`);
+  return renderCampaignPageDirect(c, user, matched, ref);
 }
