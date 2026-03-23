@@ -4,12 +4,14 @@ import { htmlHead } from '../lib/render.js';
 
 export async function renderBioPage(c: Context): Promise<Response> {
   const username = sanitizeParam(c.req.param('username') ?? '');
+  const ref = sanitizeParam(c.req.query('ref') || '');
 
   const usersData = await airtableFetch('USERS', {
     filterByFormula: `OR({username}='${username}', LOWER({username})='${username.toLowerCase()}')`,
     maxRecords: 1,
   });
   const user = usersData.records?.[0];
+  if (ref) c.header('Set-Cookie', `pf_ref=${ref}; Path=/; Max-Age=86400; SameSite=Lax`);
   if (!user) return render404Page(c, username);
 
   const userRecordId = user.id;
@@ -19,8 +21,8 @@ export async function renderBioPage(c: Context): Promise<Response> {
   const campaigns: any[] = campaignsData.records || [];
 
   if (campaigns.length === 0) return renderWaitlistPage(c, user);
-  if (campaigns.length === 1) return renderCampaignPageDirect(c, user, campaigns[0]);
-  return renderBioPageWithCampaigns(c, user, campaigns);
+  if (campaigns.length === 1) return renderCampaignPageDirect(c, user, campaigns[0], ref);
+  return renderBioPageWithCampaigns(c, user, campaigns, ref);
 }
 
 function renderWaitlistPage(c: Context, user: any): Response {
@@ -94,7 +96,7 @@ function renderWaitlistPage(c: Context, user: any): Response {
   return c.html(html);
 }
 
-function renderBioPageWithCampaigns(c: Context, user: any, campaigns: any[]): Response {
+function renderBioPageWithCampaigns(c: Context, user: any, campaigns: any[], ref: string = ''): Response {
   const brandName = user.fields.first_name || user.fields.username || 'Shop';
   const profileImage =
     user.fields.profile_image ||
@@ -114,7 +116,7 @@ function renderBioPageWithCampaigns(c: Context, user: any, campaigns: any[]): Re
         f.image_url ||
         'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=400&q=80';
       return `
-      <a href="/${username}/${slug}" class="card card-compact bg-base-200 hover:bg-base-300 transition overflow-hidden">
+      <a href="/${username}/${slug}${ref ? '?ref=' + ref : ''}" class="card card-compact bg-base-200 hover:bg-base-300 transition overflow-hidden">
         <figure><img src="${image}" class="w-full h-48 object-cover" alt="${name}"></figure>
         <div class="card-body">
           <h3 class="card-title text-base">${name}</h3>
@@ -155,7 +157,7 @@ function renderBioPageWithCampaigns(c: Context, user: any, campaigns: any[]): Re
   return c.html(html);
 }
 
-export function renderCampaignPageDirect(c: Context, user: any, campaign: any): Response {
+export function renderCampaignPageDirect(c: Context, user: any, campaign: any, referrer: string = ''): Response {
   const f = campaign.fields;
   const brandName = user.fields.first_name || user.fields.username || 'Shop';
   const profileImage =
@@ -329,6 +331,7 @@ export function renderCampaignPageDirect(c: Context, user: any, campaign: any): 
                 email: this.email,
                 name: this.name,
                 amount: ${Math.round(price * 100)},
+                referrer: '${referrer}',
               }),
             });
             const data = await res.json();

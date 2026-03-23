@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { airtableGetRecord, airtableCreate, airtableUpdate } from '../lib/airtable.js';
+import { airtableGetRecord, airtableCreate, airtableUpdate, airtableFetch, sanitizeParam } from '../lib/airtable.js';
 
 export async function handleCheckout(c: Context): Promise<Response> {
   const body = await c.req.json<{
@@ -7,9 +7,10 @@ export async function handleCheckout(c: Context): Promise<Response> {
     email: string;
     name?: string;
     amount: number;
+    referrer?: string;
   }>();
 
-  const { campaign_id, email, name, amount } = body;
+  const { campaign_id, email, name, amount, referrer } = body;
 
   if (!campaign_id || !email || !amount) {
     return c.json({ error: 'Missing required fields' }, 400);
@@ -60,16 +61,36 @@ export async function handleCheckout(c: Context): Promise<Response> {
 
   await airtableCreate('ORDERS', {
     campaign_id: [campaign_id],
+    campaign_id_text: campaign_id,
     customer_email: email,
     customer_name: name || '',
     amount_cents: amount,
     stripe_session_id: session.id,
     capture_status: 'pending',
     state: 'Pre-Auth',
+    last_state_change: new Date().toISOString(),
   });
 
   const currentSold = campaign.fields.current_units || 0;
   await airtableUpdate('CAMPAIGNS', campaign_id, { current_units: currentSold + 1 });
+
+  if (referrer) {
+    (async () => {
+      try {
+        const refUsersData = await airtableFetch('USERS', { filterByFormula: `{username}='${sanitizeParam(referrer)}'`, maxRecords: 1 });
+        const refUser = refUsersData.records?.[0];
+        if (refUser && refUser.id !== userRecordId) {
+          await airtableCreate('REFERRALS', {
+            referrer_id: [refUser.id],
+            stripe_session_id: session.id,
+            referred_email: email,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          });
+        }
+      } catch {}
+    })();
+  }
 
   if (process.env.N8N_WEBHOOK_URL) {
     fetch(process.env.N8N_WEBHOOK_URL, {
