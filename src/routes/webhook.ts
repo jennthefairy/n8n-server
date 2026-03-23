@@ -1,6 +1,6 @@
 import { Context } from 'hono';
 import Stripe from 'stripe';
-import { airtableFetch, airtableUpdate, airtableGetRecord } from '../lib/airtable.js';
+import { airtableFetch, airtableUpdate, airtableCreate, airtableGetRecord } from '../lib/airtable.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -38,18 +38,9 @@ export async function handleStripeWebhook(c: Context): Promise<Response> {
   }
 
   if (event.type === 'payment_intent.amount_capturable_updated') {
+    // Card authorized — money is held, NOT captured yet. Auto-Close handles capture.
     const pi = event.data.object as Stripe.PaymentIntent;
-    const ordersData = await airtableFetch('ORDERS', {
-      filterByFormula: `{payment_intent_id}='${pi.id}'`,
-      maxRecords: 1,
-    });
-    const order = ordersData.records?.[0];
-    if (order) {
-      await airtableUpdate('ORDERS', order.id, {
-        capture_status: 'captured',
-        state: 'Paid',
-      });
-    }
+    console.log(`Pre-auth confirmed: PI ${pi.id}, capturable: ${pi.amount_capturable}`);
   }
 
   if (event.type === 'payment_intent.canceled') {
@@ -59,19 +50,30 @@ export async function handleStripeWebhook(c: Context): Promise<Response> {
       maxRecords: 1,
     });
     const order = ordersData.records?.[0];
-    if (order) {
+    // Guard: only process if Auto-Close hasn't already handled this cancellation
+    if (order && order.fields.capture_status !== 'cancelled') {
       await airtableUpdate('ORDERS', order.id, {
         capture_status: 'cancelled',
         state: 'Released',
       });
-      const campaignIds: string[] = order.fields.campaign_id || [];
-      if (campaignIds[0]) {
-        const campaign = await airtableGetRecord('CAMPAIGNS', campaignIds[0]);
-        if (campaign) {
-          const currentSold = campaign.fields.current_units || 1;
-          await airtableUpdate('CAMPAIGNS', campaign.id, {
-            current_units: Math.max(0, currentSold - 1),
-          });
+      // Do NOT decrement current_units — campaign is already failed/closed at this point
+    }
+  }
+
+  if (event.type === 'payment_intent.succeeded') {
+    const pi = event.data.object as Stripe.PaymentIntent;
+    const ordersData = await airtableFetch('ORDERS', { filterByFormula: `{payment_intent_id}='${pi.id}'`, maxRecords: 1 });
+    const order = ordersData.records?.[0];
+    if (order?.fields?.stripe_session_id) {
+      const refData = await airtableFetch('REFERRALS', { filterByFormula: `AND({stripe_session_id}='${order.fields.stripe_session_id}',{status}='pending')`, maxRecords: 1 });
+      const referral = refData.records?.[0];
+      if (referral) {
+        const referrerId = (referral.fields.referrer_id as string[])?.[0];
+        if (referrerId) {
+          await airtableCreate('POINTS_LEDGER', { user_id: [referrerId], delta: 10, reason: 'referral_vested', ref_id: referral.id, created_at: new Date().toISOString() });
+          await airtableUpdate('REFERRALS', referral.id, { status: 'awarded', vested_at: new Date().toISOString(), points_awarded: 10 });
+          const refUser = await airtableGetRecord('USERS', referrerId);
+          if (refUser) await airtableUpdate('USERS', referrerId, { points_balance: (refUser.fields.points_balance || 0) + 10 });
         }
       }
     }
