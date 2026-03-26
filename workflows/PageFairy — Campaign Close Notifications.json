@@ -1,0 +1,273 @@
+{
+  "name": "PageFairy — Campaign Close Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campaign-closed",
+        "options": {}
+      },
+      "id": "cc-01-webhook",
+      "name": "Campaign Closed Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "517a772c-13e2-4f44-92d5-f26f1c3634ae",
+      "notes": "Triggered by campaign-lifecycle agent cron. Expected body: { campaign_id, goal_met, campaign_name, current_units, goal_units, retail_price, wholesale_cost, tech_chat_id, tech_record_id }"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-goal-met",
+              "leftValue": "={{$json.body.goal_met}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cc-02-goal-met",
+      "name": "Goal Met?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        464,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS/{{$('Campaign Closed Webhook').first().json.body.campaign_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { status: 'successful' } }) }}",
+        "options": {}
+      },
+      "id": "cc-03-patch-successful",
+      "name": "Set Campaign Successful",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        688,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Campaign Closed Webhook').first().json.body;\nconst retail = parseFloat(d.retail_price ?? 0);\nconst wholesale = parseFloat(d.wholesale_cost ?? 0);\nconst goal = parseInt(d.goal_units ?? 0);\nconst totalRevenue = (goal * retail).toFixed(2);\nconst totalProfit = (goal * (retail - wholesale)).toFixed(2);\n\nconst message = `🎊 *GOAL REACHED!*\n\nYour '${d.campaign_name}' campaign hit ${goal} orders!\n\nTotal revenue: $${totalRevenue}\nYour profit: $${totalProfit}\n\nWe're now capturing payments and preparing to ship.\nYou'll receive your payout within 3-5 business days!`;\n\nreturn [{\n  json: {\n    chat_id: d.tech_chat_id,\n    message,\n    inline_keyboard: [[{\n      text: 'View Details 📊',\n      callback_data: `view_campaign_${d.campaign_id}`\n    }, {\n      text: 'Start New Campaign ➕',\n      callback_data: 'start_campaign'\n    }]]\n  }\n}];"
+      },
+      "id": "cc-04-build-success-msg",
+      "name": "Build Goal Met Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {}
+      },
+      "id": "cc-05-send-success-dm",
+      "name": "DM Tech — Goal Met",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        192
+      ],
+      "webhookId": "1880fc28-dfc7-42d2-aad8-1fc3bc10e3d1",
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS/{{$('Campaign Closed Webhook').first().json.body.campaign_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { status: 'failed' } }) }}",
+        "options": {}
+      },
+      "id": "cc-06-patch-failed",
+      "name": "Set Campaign Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        688,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Campaign Closed Webhook').first().json.body;\nconst current = parseInt(d.current_units ?? 0);\nconst goal = parseInt(d.goal_units ?? 0);\n\nconst message = `Campaign ended — ${current}/${goal} orders.\n\nNo charges have been made to your customers.\n\n${current} people were interested — that's a warm audience!\nConsider launching again with a lower goal or different product.`;\n\nreturn [{\n  json: {\n    chat_id: d.tech_chat_id,\n    message,\n    inline_keyboard: [[{\n      text: '🔄 Try Again',\n      callback_data: 'start_campaign'\n    }, {\n      text: '👀 Browse Products',\n      callback_data: 'browse_products'\n    }]]\n  }\n}];"
+      },
+      "id": "cc-07-build-fail-msg",
+      "name": "Build Goal Not Met Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {}
+      },
+      "id": "cc-08-send-fail-dm",
+      "name": "DM Tech — Goal Not Met",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        432
+      ],
+      "webhookId": "0940322a-0fb4-4ea3-b880-b450eb809b91",
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Campaign Closed Webhook": {
+      "main": [
+        [
+          {
+            "node": "Goal Met?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Goal Met?": {
+      "main": [
+        [
+          {
+            "node": "Set Campaign Successful",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Campaign Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Campaign Successful": {
+      "main": [
+        [
+          {
+            "node": "Build Goal Met Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Goal Met Message": {
+      "main": [
+        [
+          {
+            "node": "DM Tech — Goal Met",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Campaign Failed": {
+      "main": [
+        [
+          {
+            "node": "Build Goal Not Met Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Goal Not Met Message": {
+      "main": [
+        [
+          {
+            "node": "DM Tech — Goal Not Met",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7779fa27-6eb9-4310-b69c-062e6f68bdf5",
+  "meta": {
+    "instanceId": "9f3334cea83eb8739ec0c3c2f04bb3b00d3c9a087b00bdf3d690a82db30a6c48"
+  },
+  "id": "It74CyqfnwmA7gxE",
+  "tags": []
+}

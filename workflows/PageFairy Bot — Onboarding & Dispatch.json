@@ -1,0 +1,2284 @@
+{
+  "name": "PageFairy Bot — Onboarding & Dispatch",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pagefairy-bot",
+        "options": {}
+      },
+      "id": "ob-01-webhook",
+      "name": "Telegram Bot Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ],
+      "webhookId": "b4c7c735-6141-456d-b1ac-2c589b1706da",
+      "notes": "Set this as the Telegram webhook URL: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://n8n.pagefairy.com/webhook/pagefairy-bot"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst message = body.message ?? body.edited_message ?? null;\nconst callback = body.callback_query ?? null;\n\nif (callback) {\n  return [{ json: {\n    update_type: 'callback',\n    chat_id: String(callback.message.chat.id),\n    callback_id: callback.id,\n    callback_data: callback.data ?? '',\n    message_id: callback.message.message_id,\n    first_name: callback.from?.first_name ?? 'there',\n    telegram_username: callback.from?.username ?? null\n  }}];\n}\n\nif (message) {\n  const text = message.text ?? '';\n  const isCommand = text.startsWith('/');\n  return [{ json: {\n    update_type: isCommand ? 'command' : 'text',\n    command: isCommand ? text.split(' ')[0].toLowerCase() : null,\n    text: text,\n    chat_id: String(message.chat.id),\n    first_name: message.from?.first_name ?? 'there',\n    telegram_username: message.from?.username ?? null\n  }}];\n}\n\nreturn [{ json: { update_type: 'unknown', chat_id: null } }];"
+      },
+      "id": "ob-02-parse",
+      "name": "Parse Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      },
+      "id": "ob-03-route",
+      "name": "Route Update Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        448,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `{telegram_chat_id}='${$json.chat_id}'` }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-04-lookup-start",
+      "name": "Lookup User (/start)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        672,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "exists-check",
+              "leftValue": "={{$json.records.length}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ob-05-user-exists",
+      "name": "User Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { telegram_chat_id: $('Parse Update').first().json.chat_id, first_name: $('Parse Update').first().json.first_name, bot_state: 'new' } }) }}",
+        "options": {}
+      },
+      "id": "ob-06-create-user",
+      "name": "Create User Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1104,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "=Hey {{$('Parse Update').first().json.first_name}}! 👋\n\nI'm PageFairy — your secret weapon for selling lash products without buying inventory first.\n\n💡 Here's the magic: You pick a product, set YOUR price, share with clients, and we ship directly to them. You pocket the profit.\n\nNo upfront cost. No risk. Just sales.",
+        "additionalFields": {}
+      },
+      "id": "ob-07-msg1",
+      "name": "Send Message 1 — Value Prop",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        224
+      ],
+      "webhookId": "bb515dd7-5678-417f-9596-0dcd3ed387f1",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "ob-08-wait1",
+      "name": "Wait 1.5s (1)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1552,
+        224
+      ],
+      "webhookId": "a9fb8b39-0d40-4d47-bc52-48c76cb6f685"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "📊 *Quick Example:*\n\nMink Lash Set\n• Our price: $12\n• You sell at: $28\n• You keep: $16 profit\n\nSell 20 sets = $320 in your pocket\n\nAnd you never touch the product! ✨",
+        "additionalFields": {}
+      },
+      "id": "ob-09-msg2",
+      "name": "Send Message 2 — Profit Example",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        224
+      ],
+      "webhookId": "6f70337d-47f5-45f3-b8d3-4cea69bc9050",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "ob-10-wait2",
+      "name": "Wait 1.5s (2)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1984,
+        224
+      ],
+      "webhookId": "4aab1243-5d0d-40a9-9628-ff00581cb3ad"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "Ready to see what you could sell?",
+        "additionalFields": {}
+      },
+      "id": "ob-11-msg3",
+      "name": "Send Message 3 — CTA",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2208,
+        224
+      ],
+      "webhookId": "740c2649-7f3f-4f83-8172-3738fa38a50a",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS/{{$('Create User Record').first().json.id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { bot_state: 'awaiting_username' } }) }}",
+        "options": {}
+      },
+      "id": "ob-12-set-state-awaiting",
+      "name": "Set bot_state = awaiting_username",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2432,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "Before we get started — let's claim your link! 🔗\n\nWhat's your brand name?\n(This becomes pagefairy.me/_____)\n\nType it now (letters and numbers only, no spaces):",
+        "additionalFields": {}
+      },
+      "id": "ob-13-send-username-prompt",
+      "name": "Send Username Prompt",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2640,
+        224
+      ],
+      "webhookId": "16716e3e-cd08-4f87-986f-013e9c2fa6b5",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "has-username",
+              "leftValue": "={{$json.records[0].fields.username ?? ''}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ob-14-has-username",
+      "name": "Has Username?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `AND({user_id}='${$('Lookup User (/start)').first().json.records[0].id}',{status}='active')` }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "5"
+            },
+            {
+              "name": "sort[0][field]",
+              "value": "created_at"
+            },
+            {
+              "name": "sort[0][direction]",
+              "value": "desc"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-15-fetch-campaigns",
+      "name": "Fetch Tech Campaigns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1328,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = $('Lookup User (/start)').first().json.records[0].fields;\nconst campaigns = $('Fetch Tech Campaigns').first().json.records ?? [];\nconst firstName = $('Parse Update').first().json.first_name;\n\nlet message;\nlet keyboard;\n\nif (campaigns.length > 0) {\n  const lines = campaigns.map(c => {\n    const f = c.fields;\n    const pct = f.goal_units > 0 ? Math.round((f.current_units / f.goal_units) * 100) : 0;\n    return `• ${f.name ?? 'Campaign'}: ${f.current_units ?? 0}/${f.goal_units ?? 0} (${pct}%)`;\n  }).join('\\n');\n  message = `Welcome back, ${firstName}! ✨\\n\\n📊 You have ${campaigns.length} active campaign${campaigns.length > 1 ? 's' : ''}:\\n\\n${lines}\\n\\nWhat would you like to do?`;\n  keyboard = [[{\n    text: '📊 Campaign Dashboard',\n    callback_data: 'dashboard'\n  }, {\n    text: '🚀 Start New Campaign',\n    callback_data: 'start_campaign'\n  }], [{\n    text: '🤖 Ask AI for Help',\n    callback_data: 'ask_ai'\n  }]];\n} else {\n  message = `Welcome back, ${firstName}! ✨\\n\\nYou don't have any active campaigns yet.\\n\\nStart one today!`;\n  keyboard = [[{\n    text: '🚀 Start First Campaign',\n    callback_data: 'start_campaign'\n  }, {\n    text: '👀 Browse Products',\n    callback_data: 'browse_products'\n  }], [{\n    text: '🤖 Ask AI',\n    callback_data: 'ask_ai'\n  }]];\n}\n\nreturn [{ json: { chat_id: $('Parse Update').first().json.chat_id, message, keyboard } }];"
+      },
+      "id": "ob-16-build-dashboard",
+      "name": "Build Returning User Dashboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {}
+      },
+      "id": "ob-17-send-dashboard",
+      "name": "Send Returning User Dashboard",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        -96
+      ],
+      "webhookId": "24b80b68-d9d6-4bf9-9b91-d886b0d2b674",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "Before we get started — let's claim your link! 🔗\n\nWhat's your brand name?\n(This becomes pagefairy.me/_____)\n\nType it now (letters and numbers only, no spaces):",
+        "additionalFields": {}
+      },
+      "id": "ob-18-resend-username-prompt",
+      "name": "Re-Send Username Prompt (No Username)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        112
+      ],
+      "webhookId": "bd4e368b-0b80-4fd2-a0a3-72d1b1088f49",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `{telegram_chat_id}='${$json.chat_id}'` }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-19-lookup-text",
+      "name": "Lookup User (text)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        672,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "awaiting-check",
+              "leftValue": "={{$json.records[0]?.fields?.bot_state ?? ''}}",
+              "rightValue": "awaiting_username",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ob-20-awaiting-check",
+      "name": "Awaiting Username?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $('Parse Update').first().json.text ?? '';\nconst username = text.trim().toLowerCase();\nconst valid = /^[a-z0-9]{3,32}$/.test(username);\nconst userRecord = $('Lookup User (text)').first().json.records[0];\n\nreturn [{ json: {\n  valid,\n  username,\n  chat_id: $('Parse Update').first().json.chat_id,\n  user_record_id: userRecord?.id ?? null,\n  error_reason: !valid\n    ? (username.length < 3 ? 'too_short'\n       : username.length > 32 ? 'too_long'\n       : 'invalid_chars')\n    : null\n}}];"
+      },
+      "id": "ob-21-validate-username",
+      "name": "Validate Username",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{$json.valid}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ob-22-valid-format",
+      "name": "Valid Format?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "That name doesn't work. Please use only letters and numbers (3–32 characters, no spaces).\n\nTry again:",
+        "additionalFields": {}
+      },
+      "id": "ob-23-send-invalid",
+      "name": "Send Invalid Format Prompt",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1552,
+        448
+      ],
+      "webhookId": "d9fec9c5-fdc7-414d-afdd-563a1b91e1ef",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `{username}='${$json.username}'` }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-24-check-taken",
+      "name": "Check Username Taken",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1552,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "taken-check",
+              "leftValue": "={{$json.records.length}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ob-25-taken-check",
+      "name": "Username Taken?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Validate Username').first().json.chat_id}}",
+        "text": "That name is taken! Try another:",
+        "additionalFields": {}
+      },
+      "id": "ob-26-send-taken",
+      "name": "Send Username Taken Prompt",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1984,
+        432
+      ],
+      "webhookId": "c91505ab-f4ff-4deb-8dba-0b87799d62ca",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS/{{$('Validate Username').first().json.user_record_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { username: $('Validate Username').first().json.username, bot_state: 'active' } }) }}",
+        "options": {}
+      },
+      "id": "ob-27-patch-username",
+      "name": "Save Username to USERS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1984,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Validate Username').first().json.chat_id}}",
+        "text": "=✅ *Your page is live!*\n\n🔗 pagefairy.me/{{$('Validate Username').first().json.username}}\n\nAdd this to your Instagram bio — it updates automatically when you launch a campaign.\n\nNow let's find your first product!",
+        "additionalFields": {}
+      },
+      "id": "ob-28-send-confirmation",
+      "name": "Send Username Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2208,
+        288
+      ],
+      "webhookId": "629f30f0-c181-4aa4-9ba0-6ff46eeb7393",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.callback_data ?? '';\nconst isApprove = data.startsWith('approve_');\nconst isReject = data.startsWith('reject_');\nconst campaignId = (isApprove || isReject) ? data.split('_').slice(1).join('_') : null;\n\nreturn [{ json: {\n  ...($json),\n  callback_action: isApprove ? 'approve' : isReject ? 'reject' : 'other',\n  campaign_id: campaignId\n}}];"
+      },
+      "id": "ob-29-parse-callback",
+      "name": "Parse Callback Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "admin-cb-check",
+              "leftValue": "={{$json.callback_action}}",
+              "rightValue": "other",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ob-30-is-admin-callback",
+      "name": "Is Approve/Reject Callback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS/{{$json.campaign_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-31-get-campaign",
+      "name": "Fetch Campaign for Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1104,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS/{{$('Fetch Campaign for Approval').first().json.fields.user_id[0]}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-32-get-tech-for-approval",
+      "name": "Fetch Tech User for Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1328,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {},
+            {}
+          ]
+        }
+      },
+      "id": "ob-33-approve-reject-switch",
+      "name": "Approve or Reject?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS/{{$('Parse Callback Data').first().json.campaign_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { status: 'active', admin_approved_by: String($('Parse Callback Data').first().json.chat_id), admin_approved_at: new Date().toISOString() } }) }}",
+        "options": {}
+      },
+      "id": "ob-34-patch-active",
+      "name": "Set Campaign Active",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1760,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Fetch Tech User for Approval').first().json.fields.telegram_chat_id}}",
+        "text": "=🎉 *Campaign Approved!*\n\nYour campaign is LIVE:\n🔗 pagefairy.me/{{$('Fetch Tech User for Approval').first().json.fields.username}}\n\nShare this link with your clients to start collecting pre-orders!",
+        "additionalFields": {}
+      },
+      "id": "ob-35-dm-approved",
+      "name": "DM Tech — Campaign Approved",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1984,
+        432
+      ],
+      "webhookId": "4136e14d-6be6-42de-839b-29908119dc3c",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{$('Parse Callback Data').first().json.callback_id}}",
+        "additionalFields": {
+          "text": "✅ Campaign approved and tech notified"
+        }
+      },
+      "id": "ob-36-answer-approve",
+      "name": "Answer Callback — Approved",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2208,
+        432
+      ],
+      "webhookId": "38256255-6f54-4d6a-b29c-35909eccbded",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS/{{$('Parse Callback Data').first().json.campaign_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { status: 'cancelled' } }) }}",
+        "options": {}
+      },
+      "id": "ob-37-patch-cancelled",
+      "name": "Set Campaign Cancelled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1760,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Fetch Tech User for Approval').first().json.fields.telegram_chat_id}}",
+        "text": "We need a little more detail to get this right. Please update here: [Link]",
+        "additionalFields": {}
+      },
+      "id": "ob-38-dm-rejected",
+      "name": "DM Tech — Campaign Rejected",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1984,
+        592
+      ],
+      "webhookId": "af407656-de2e-4ed9-942f-b097e04bdad2",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `AND({user_id}='${$('Fetch Campaign for Approval').first().json.fields.user_id[0]}',{status}='cancelled')` }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-39-count-rejections",
+      "name": "Count User Rejections",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2208,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "second-rej",
+              "leftValue": "={{$json.records.length}}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ob-40-second-rejection",
+      "name": "Second Rejection?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS/{{$('Fetch Tech User for Approval').first().json.id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { is_flagged: true } }) }}",
+        "options": {}
+      },
+      "id": "ob-41-flag-user",
+      "name": "Set USERS.is_flagged = true",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2640,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/AUDIT_LOGS",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { actor: 'onboarding_bot', action: 'user_flagged', target_type: 'users', target_id: $('Fetch Tech User for Approval').first().json.id, details: JSON.stringify({ reason: 'second_rejection', campaign_id: $('Parse Callback Data').first().json.campaign_id }) } }) }}",
+        "options": {}
+      },
+      "id": "ob-42-write-audit-log",
+      "name": "Write AUDIT_LOGS — Flagged",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2864,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{$('Parse Callback Data').first().json.callback_id}}",
+        "additionalFields": {
+          "text": "❌ Campaign rejected and tech notified"
+        }
+      },
+      "id": "ob-43-answer-reject",
+      "name": "Answer Callback — Rejected",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2640,
+        688
+      ],
+      "webhookId": "dfbb8af0-755f-4f80-b23a-2014c217ed57",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "You have reached today's limit. Upgrade to Magic Wand+ for priority access.",
+        "additionalFields": {}
+      },
+      "id": "ob-45-rate-limit",
+      "name": "Send Rate Limit Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        704
+      ],
+      "webhookId": "223b81f9-22a0-45df-915c-c34ce51ece34",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      },
+      "notes": "Triggered when USERS.submission_count_24h >= 2 AND USERS.magic_wand_active = false. Exact copy from pf-ops.txt."
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "This drop is sold out. Type NOTIFY to join the waitlist.",
+        "additionalFields": {}
+      },
+      "id": "ob-46-sold-out",
+      "name": "Send Sold Out Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        704
+      ],
+      "webhookId": "5055f543-879e-4b8d-9b40-980080486e98",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      },
+      "notes": "Triggered when user selects a product with SKUS.stock_status = Sold_Out. Exact copy from pf-ops.txt."
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "That link has expired. Type REJOIN to request a new one.",
+        "additionalFields": {}
+      },
+      "id": "ob-47-expired-link",
+      "name": "Send Expired Link Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        704
+      ],
+      "webhookId": "2a079ba4-bcc2-4fe4-aab6-d8c7e1f6865e",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      },
+      "notes": "Triggered when user taps an expired Vendor Lounge invite link. Exact copy from pf-ops.txt."
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "Referral not eligible — self-referrals don't count.",
+        "additionalFields": {}
+      },
+      "id": "ob-48-self-referral",
+      "name": "Send Self-Referral Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        704
+      ],
+      "webhookId": "64f7a27a-d81a-40ac-9da4-e6fa12a62fb9",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      },
+      "notes": "Triggered when /start?ref=X resolves to the same user as the referrer. Exact copy from pf-ops.txt."
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "Request received — review takes up to 48 hours. We'll notify you here when it's approved.",
+        "additionalFields": {}
+      },
+      "id": "ob-49-cashout",
+      "name": "Send Cash-Out Received Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        704
+      ],
+      "webhookId": "be759ac2-a3a4-45e5-a430-37f81e8a7c81",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      },
+      "notes": "Triggered when user requests Fairy Points cash-out (2,500 pts = $25). Exact copy from pf-ops.txt."
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "Please use plain text only — no links or hashtags.",
+        "additionalFields": {}
+      },
+      "id": "ob-50-bio-sanitize",
+      "name": "Send Bio Sanitize Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1552,
+        704
+      ],
+      "webhookId": "d8ccea99-7436-49d5-a7d1-906f255718e9",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      },
+      "notes": "Triggered when bio text fails sanitization (contains URLs, >2 hashtags, or injection patterns). Exact copy from pf-ops.txt."
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "What would you like to do?",
+        "additionalFields": {}
+      },
+      "id": "ob-51-send-menu",
+      "name": "Send Main Menu",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -208
+      ],
+      "webhookId": "f6ddf964-3b60-41a8-b3e7-5234eeaa364e",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/SKUS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "{stock_status}='In_Stock'"
+            },
+            {
+              "name": "maxRecords",
+              "value": "10"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-52-fetch-products",
+      "name": "Fetch Products from Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        672,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const records = $input.first().json.records ?? [];\nconst chatId = $('Parse Update').first().json.chat_id;\n\nif (records.length === 0) {\n  return [{ json: { chat_id: chatId, message: 'No products available right now. Check back soon!', keyboard: [[{ text: '« Menu', callback_data: 'menu' }]] } }];\n}\n\nconst lines = records.map((r, i) => {\n  const f = r.fields;\n  return `${i+1}. *${f.name ?? 'Product'}*\\n   💰 Wholesale: $${f.wholesale_price ?? '?'}\\n   💵 Suggested: $${f.suggested_retail ?? '?'}`;\n}).join('\\n\\n');\n\nconst keyboard = records.map(r => [{\n  text: `Select: ${r.fields.name ?? 'Product'}`,\n  callback_data: `select_product_${r.id}`\n}]);\nkeyboard.push([{ text: '« Menu', callback_data: 'menu' }]);\n\nreturn [{ json: { chat_id: chatId, message: `🛍️ *Our Product Catalog:*\\n\\n${lines}`, keyboard } }];"
+      },
+      "id": "ob-53-build-product-list",
+      "name": "Build Product List Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {}
+      },
+      "id": "ob-54-send-product-list",
+      "name": "Send Product List",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        -400
+      ],
+      "webhookId": "1ad66162-37de-417f-8d10-9060d5bfd516",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "*PageFairy Commands:*\n\n/start - Start over\n/menu - Main menu\n/products - Browse catalog\n/mycampaigns - Your campaigns\n/help - This list\n\n💡 *Pro tip:* Send me a product photo and I'll write campaign copy for you!",
+        "additionalFields": {}
+      },
+      "id": "ob-55-send-help",
+      "name": "Send Help Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -608
+      ],
+      "webhookId": "6b05057b-59bf-4117-8544-2455ff7db17f",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      },
+      "id": "ob-56-route-callback",
+      "name": "Route Regular Callback",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{$('Parse Update').first().json.callback_id}}",
+        "additionalFields": {
+          "text": ""
+        }
+      },
+      "id": "ob-57-answer-cb-ack",
+      "name": "Answer Callback Query (ack)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        752
+      ],
+      "webhookId": "87d45181-f0d1-47d9-8d73-038ef6780da3",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "*How PageFairy Works:*\n\n1️⃣ *PICK* a product from our catalog\n→ We have lashes, tools, accessories\n\n2️⃣ *SET* your price\n→ Buy at $12, sell at $28 = $16 profit\n\n3️⃣ *SHARE* your campaign link\n→ Post on IG, send to clients\n\n4️⃣ *COLLECT* pre-orders\n→ Clients pay you directly\n\n5️⃣ *WE SHIP* to your clients\n→ You never touch inventory\n\n💰 You keep the profit margin on every sale!",
+        "additionalFields": {}
+      },
+      "id": "ob-58-send-how-it-works",
+      "name": "Send How It Works",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        704
+      ],
+      "webhookId": "b1ed8900-b27d-45dc-b958-73205aa6b29a",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "Let's start a new campaign! First, pick a product:\n\nUse /products to browse the catalog, then tap \"Select\" on the product you want.",
+        "additionalFields": {}
+      },
+      "id": "ob-63-send-start-campaign",
+      "name": "Send Start Campaign Prompt",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        944
+      ],
+      "webhookId": "79f3767e-b931-4bf7-a5d5-4896d504e266",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Parse Update').first().json.chat_id}}",
+        "text": "I'm your AI assistant! 🤖\n\nI can help you with:\n• Writing campaign descriptions\n• Answering questions about PageFairy\n• Analyzing product photos\n• Marketing tips\n\nJust type your question or send a product photo!",
+        "additionalFields": {}
+      },
+      "id": "ob-64-send-ask-ai",
+      "name": "Send Ask AI Prompt",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        1072
+      ],
+      "webhookId": "9fc79205-5466-4128-b4b7-ecfc4ffccd90",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `{telegram_chat_id}='${$json.chat_id}'` }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-65-mycampaigns-lookup",
+      "name": "Lookup User (/mycampaigns)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        672,
+        -800
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `{user_id}='${$json.records[0]?.id ?? 'NONE'}'` }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "10"
+            },
+            {
+              "name": "sort[0][field]",
+              "value": "created_at"
+            },
+            {
+              "name": "sort[0][direction]",
+              "value": "desc"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-66-mycampaigns-fetch",
+      "name": "Fetch All User Campaigns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        880,
+        -800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const campaigns = $input.first().json.records ?? [];\nconst chatId = $('Parse Update').first().json.chat_id;\nconst firstName = $('Parse Update').first().json.first_name;\n\nif (campaigns.length === 0) {\n  return [{ json: { chat_id: chatId, message: `You don't have any campaigns yet.\\n\\nYour first campaign is just a few taps away!`, keyboard: [[{ text: '🚀 Start First Campaign', callback_data: 'start_campaign' }, { text: '« Menu', callback_data: 'menu' }]] } }];\n}\n\nconst statusEmoji = { active: '🟢', pending_approval: '📝', successful: '🎉', completed: '✅', failed: '❌', cancelled: '⛔' };\n\nconst lines = campaigns.map(c => {\n  const f = c.fields;\n  const pct = f.goal_units > 0 ? Math.round((f.current_units / f.goal_units) * 100) : 0;\n  const emoji = statusEmoji[f.status] ?? '📝';\n  return `${emoji} *${f.name ?? 'Campaign'}*\\n   Progress: ${f.current_units ?? 0}/${f.goal_units ?? 0} (${pct}%)`;\n}).join('\\n\\n');\n\nconst keyboard = campaigns.filter(c => c.fields.status === 'active').map(c => [{\n  text: `View: ${c.fields.name ?? 'Campaign'}`,\n  callback_data: `view_campaign_${c.id}`\n}]);\nkeyboard.push([{ text: '🚀 New Campaign', callback_data: 'start_campaign' }, { text: '« Menu', callback_data: 'menu' }]);\n\nreturn [{ json: { chat_id: chatId, message: `📊 *Your Campaigns:*\\n\\n${lines}`, keyboard } }];"
+      },
+      "id": "ob-67-mycampaigns-build",
+      "name": "Build My Campaigns Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        -800
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {}
+      },
+      "id": "ob-68-mycampaigns-send",
+      "name": "Send My Campaigns",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        -800
+      ],
+      "webhookId": "fc3e20c5-056b-4821-97c4-20d38c00440b",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `{telegram_chat_id}='${$('Parse Update').first().json.chat_id}'` }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-69-dashboard-lookup",
+      "name": "Lookup User (dashboard cb)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1328,
+        1184
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ `{user_id}='${$input.first().json.records[0]?.id ?? 'NONE'}'` }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "10"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ob-70-dashboard-campaigns",
+      "name": "Fetch Campaigns (dashboard cb)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1552,
+        1184
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const campaigns = $input.first().json.records ?? [];\nconst chatId = $('Parse Update').first().json.chat_id;\n\nif (campaigns.length === 0) {\n  return [{ json: { chat_id: chatId, message: `You don't have any campaigns yet.`, keyboard: [[{ text: '🚀 Start First Campaign', callback_data: 'start_campaign' }, { text: '« Menu', callback_data: 'menu' }]] } }];\n}\n\nconst statusEmoji = { active: '🟢', pending_approval: '📝', successful: '🎉', completed: '✅', failed: '❌', cancelled: '⛔' };\nconst lines = campaigns.map(c => {\n  const f = c.fields;\n  const pct = f.goal_units > 0 ? Math.round((f.current_units / f.goal_units) * 100) : 0;\n  const emoji = statusEmoji[f.status] ?? '📝';\n  return `${emoji} *${f.name ?? 'Campaign'}*\\n   Progress: ${f.current_units ?? 0}/${f.goal_units ?? 0} (${pct}%)`;\n}).join('\\n\\n');\n\nconst keyboard = campaigns.filter(c => c.fields.status === 'active').map(c => [{ text: `View: ${c.fields.name ?? 'Campaign'}`, callback_data: `view_campaign_${c.id}` }]);\nkeyboard.push([{ text: '🚀 New Campaign', callback_data: 'start_campaign' }, { text: '« Menu', callback_data: 'menu' }]);\n\nreturn [{ json: { chat_id: chatId, message: `📊 *Your Campaigns:*\\n\\n${lines}`, keyboard } }];"
+      },
+      "id": "ob-71-dashboard-build",
+      "name": "Build Dashboard (from cb)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        1184
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {}
+      },
+      "id": "ob-72-dashboard-send",
+      "name": "Send Dashboard (from cb)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1984,
+        1184
+      ],
+      "webhookId": "041362d5-100b-4abc-9d55-2f587a5c16a9",
+      "credentials": {
+        "telegramApi": {
+          "id": "UGLWeGeWdfDmcHzG",
+          "name": "PageFairy Telegram"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Bot Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Update": {
+      "main": [
+        [
+          {
+            "node": "Route Update Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Update Type": {
+      "main": [
+        [
+          {
+            "node": "Lookup User (/start)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Callback Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lookup User (text)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Main Menu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Products from Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Help Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lookup User (/mycampaigns)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup User (/start)": {
+      "main": [
+        [
+          {
+            "node": "User Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Exists?": {
+      "main": [
+        [
+          {
+            "node": "Has Username?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create User Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Username?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Tech Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Re-Send Username Prompt (No Username)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Tech Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Build Returning User Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Returning User Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Send Returning User Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create User Record": {
+      "main": [
+        [
+          {
+            "node": "Send Message 1 — Value Prop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Message 1 — Value Prop": {
+      "main": [
+        [
+          {
+            "node": "Wait 1.5s (1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1.5s (1)": {
+      "main": [
+        [
+          {
+            "node": "Send Message 2 — Profit Example",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Message 2 — Profit Example": {
+      "main": [
+        [
+          {
+            "node": "Wait 1.5s (2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1.5s (2)": {
+      "main": [
+        [
+          {
+            "node": "Send Message 3 — CTA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Message 3 — CTA": {
+      "main": [
+        [
+          {
+            "node": "Set bot_state = awaiting_username",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set bot_state = awaiting_username": {
+      "main": [
+        [
+          {
+            "node": "Send Username Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup User (text)": {
+      "main": [
+        [
+          {
+            "node": "Awaiting Username?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Awaiting Username?": {
+      "main": [
+        [
+          {
+            "node": "Validate Username",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Validate Username": {
+      "main": [
+        [
+          {
+            "node": "Valid Format?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Format?": {
+      "main": [
+        [
+          {
+            "node": "Check Username Taken",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Invalid Format Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Username Taken": {
+      "main": [
+        [
+          {
+            "node": "Username Taken?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Username Taken?": {
+      "main": [
+        [
+          {
+            "node": "Send Username Taken Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Username to USERS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Username to USERS": {
+      "main": [
+        [
+          {
+            "node": "Send Username Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback Data": {
+      "main": [
+        [
+          {
+            "node": "Is Approve/Reject Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Approve/Reject Callback?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Campaign for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer Callback Query (ack)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route Regular Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Campaign for Approval": {
+      "main": [
+        [
+          {
+            "node": "Fetch Tech User for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Tech User for Approval": {
+      "main": [
+        [
+          {
+            "node": "Approve or Reject?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve or Reject?": {
+      "main": [
+        [
+          {
+            "node": "Set Campaign Active",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Campaign Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Campaign Active": {
+      "main": [
+        [
+          {
+            "node": "DM Tech — Campaign Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DM Tech — Campaign Approved": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback — Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Campaign Cancelled": {
+      "main": [
+        [
+          {
+            "node": "DM Tech — Campaign Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DM Tech — Campaign Rejected": {
+      "main": [
+        [
+          {
+            "node": "Count User Rejections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count User Rejections": {
+      "main": [
+        [
+          {
+            "node": "Second Rejection?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Second Rejection?": {
+      "main": [
+        [
+          {
+            "node": "Set USERS.is_flagged = true",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer Callback — Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set USERS.is_flagged = true": {
+      "main": [
+        [
+          {
+            "node": "Write AUDIT_LOGS — Flagged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write AUDIT_LOGS — Flagged": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback — Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Products from Airtable": {
+      "main": [
+        [
+          {
+            "node": "Build Product List Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Product List Message": {
+      "main": [
+        [
+          {
+            "node": "Send Product List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup User (/mycampaigns)": {
+      "main": [
+        [
+          {
+            "node": "Fetch All User Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All User Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Build My Campaigns Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build My Campaigns Message": {
+      "main": [
+        [
+          {
+            "node": "Send My Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Regular Callback": {
+      "main": [
+        [
+          {
+            "node": "Fetch Products from Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send How It Works",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Main Menu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lookup User (dashboard cb)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Start Campaign Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Ask AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup User (dashboard cb)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Campaigns (dashboard cb)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Campaigns (dashboard cb)": {
+      "main": [
+        [
+          {
+            "node": "Build Dashboard (from cb)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Dashboard (from cb)": {
+      "main": [
+        [
+          {
+            "node": "Send Dashboard (from cb)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "bc4d1208-4b1f-4c9c-b3f9-2010f22c3f9d",
+  "meta": {
+    "instanceId": "9f3334cea83eb8739ec0c3c2f04bb3b00d3c9a087b00bdf3d690a82db30a6c48"
+  },
+  "id": "FtJF0HK7TD6rGXWT",
+  "tags": []
+}
