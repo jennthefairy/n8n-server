@@ -1,0 +1,135 @@
+{
+  "name": "PageFairy — Admin Approval (Campaign Created)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campaign-for-review",
+        "options": {}
+      },
+      "id": "aa-01-webhook",
+      "name": "Campaign For Review Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "84f7149a-c925-4e09-9452-3689c8681111",
+      "notes": "Called by Hono after campaign record is created in Airtable with status=pending_approval. Expected body: { campaign_id, campaign_name, username, product_name, wholesale_cost, retail_price, goal_units, tech_chat_id, tech_record_id }"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS/{{$json.body.campaign_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { status: 'pending_approval' } }) }}",
+        "options": {}
+      },
+      "id": "aa-02-patch-pending",
+      "name": "Set Campaign Pending Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        464,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Campaign For Review Webhook').first().json.body;\nconst retail = parseFloat(d.retail_price ?? 0);\nconst wholesale = parseFloat(d.wholesale_cost ?? 0);\nconst profit = (retail - wholesale).toFixed(2);\n\nconst message = `*NEW CAMPAIGN REQUEST*\n\nTech: @${d.username}\nProduct: ${d.product_name}\nWholesale: $${parseFloat(d.wholesale_cost).toFixed(2)}\nRetail: $${parseFloat(d.retail_price).toFixed(2)}\nProfit/unit: $${profit}\nGoal: ${d.goal_units} units\nLink: pagefairy.me/${d.username}`;\n\nconst inline_keyboard = [[\n  { text: '✅ Approve', callback_data: `approve_${d.campaign_id}` },\n  { text: '❌ Reject', callback_data: `reject_${d.campaign_id}` }\n]];\n\nreturn [{ json: { message, inline_keyboard, campaign_id: d.campaign_id } }];"
+      },
+      "id": "aa-03-build-admin-msg",
+      "name": "Build Admin Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {}
+      },
+      "id": "aa-04-send-admin",
+      "name": "Send Admin Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        912,
+        304
+      ],
+      "webhookId": "d1783a9d-cd7c-4d81-8397-13a2067d9f55",
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Campaign For Review Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Campaign Pending Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Campaign Pending Approval": {
+      "main": [
+        [
+          {
+            "node": "Build Admin Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Admin Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Admin Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "cc68a951-bcb2-46bf-b70f-92d6cb6f814e",
+  "meta": {
+    "instanceId": "9f3334cea83eb8739ec0c3c2f04bb3b00d3c9a087b00bdf3d690a82db30a6c48"
+  },
+  "id": "n5UtPTR1zCQbU3lD",
+  "tags": []
+}

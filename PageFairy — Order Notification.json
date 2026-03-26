@@ -1,0 +1,194 @@
+{
+  "name": "PageFairy — Order Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-order",
+        "options": {}
+      },
+      "id": "on-01-webhook",
+      "name": "New Order Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "ba872d91-0674-4e33-882d-fde07255b9ee"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/CAMPAIGNS/{{$json.body.campaign_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "on-02-get-campaign",
+      "name": "Lookup Campaign",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        464,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.airtable.com/v0/{{$env.AIRTABLE_BASE_ID}}/USERS/{{$json.fields.user_id[0]}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.AIRTABLE_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "on-03-get-tech",
+      "name": "Lookup Tech User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        688,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhook = $('New Order Webhook').first().json.body;\nconst campaign = $('Lookup Campaign').first().json.fields;\nconst tech = $('Lookup Tech User').first().json.fields;\n\nconst currentUnits = parseInt(webhook.current_units ?? campaign.current_units ?? 0);\nconst goalUnits = parseInt(webhook.goal_units ?? campaign.goal_units ?? 10);\nconst retail = parseFloat(campaign.retail_price ?? 0);\nconst wholesale = parseFloat(campaign.wholesale_cost ?? 0);\nconst pct = goalUnits > 0 ? Math.round((currentUnits / goalUnits) * 100) : 0;\nconst remaining = Math.max(0, goalUnits - currentUnits);\nconst earnings = (currentUnits * (retail - wholesale)).toFixed(2);\nconst amountDollars = ((webhook.amount_cents ?? 0) / 100).toFixed(2);\n\nconst progressLine = remaining > 0\n  ? `${remaining} more to reach goal!`\n  : '🎊 Goal reached!';\n\nconst message = `🎉 *New Order!*\n\nCampaign: ${campaign.campaign_name ?? 'Your campaign'}\nCustomer: ${webhook.customer_email ?? 'Customer'}\nAmount: $${amountDollars}\n\nProgress: ${currentUnits}/${goalUnits} (${pct}%)\n${progressLine}\n\nYour earnings so far: $${earnings}`;\n\nreturn [{ json: { chat_id: tech.telegram_chat_id, message } }];"
+      },
+      "id": "on-04-build-message",
+      "name": "Build Order Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{$json.message}}",
+        "additionalFields": {}
+      },
+      "id": "on-05-send-dm",
+      "name": "DM Tech",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        304
+      ],
+      "webhookId": "4fce9941-78fd-44d6-8a3f-43fcda979d6f",
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$('Build Order Message').first().json.chat_id}}",
+        "text": "Order confirmed! 📦 Want us to build your PageFairy brand setup while you wait? Reply MAGIC to add Magic Wand+ for $99.",
+        "additionalFields": {}
+      },
+      "id": "on-06-upsell",
+      "name": "Send Upsell Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1344,
+        304
+      ],
+      "webhookId": "d225b28f-a5e1-4f1d-9dba-4b70282cc927",
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      },
+      "notes": "Exact copy from pf-ops.txt — upsell trigger on Stripe payment_success"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "New Order Webhook": {
+      "main": [
+        [
+          {
+            "node": "Lookup Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Campaign": {
+      "main": [
+        [
+          {
+            "node": "Lookup Tech User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Tech User": {
+      "main": [
+        [
+          {
+            "node": "Build Order Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Order Message": {
+      "main": [
+        [
+          {
+            "node": "DM Tech",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DM Tech": {
+      "main": [
+        [
+          {
+            "node": "Send Upsell Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "15246140-9c44-4907-90ec-840e26b65f53",
+  "meta": {
+    "instanceId": "9f3334cea83eb8739ec0c3c2f04bb3b00d3c9a087b00bdf3d690a82db30a6c48"
+  },
+  "id": "cXsgt6zsNXvlM9oP",
+  "tags": []
+}

@@ -1,0 +1,753 @@
+{
+  "name": "PageFairy — Stuck Order Watchdog",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 60
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 60 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "filterByFormula": "=AND(NOT({state}=\"Delivered\"), NOT({state}=\"Released\"), NOT({state}=\"Refunded\"), DATETIME_DIFF(NOW(), {last_state_change}, 'hours') > 24)",
+        "options": {}
+      },
+      "id": "get-stuck-orders",
+      "name": "Get Stuck Orders (>24h)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        400,
+        208
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-stuck",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-stuck-orders",
+      "name": "Any Stuck Orders?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        608,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-stuck",
+      "name": "Loop Stuck Orders",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        800,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = $input.first().json;\nconst lastChange = order.fields.last_state_change ? new Date(order.fields.last_state_change) : null;\nconst now = new Date();\nconst hoursStuck = lastChange ? Math.floor((now - lastChange) / 3600000) : 'unknown';\nconst timeLabel = typeof hoursStuck === 'number' && hoursStuck >= 48\n  ? Math.floor(hoursStuck / 24) + ' days'\n  : hoursStuck + ' hours';\nreturn [{ json: {\n  order_id: order.id,\n  state: order.fields.state || 'unknown',\n  hours_stuck: hoursStuck,\n  time_label: timeLabel,\n  last_workflow: order.fields.workflow_name || 'none',\n  campaign_name: order.fields.campaign_name || order.fields.campaign_id || 'unknown',\n  customer_email: order.fields.customer_email || 'unknown',\n  fields: order.fields\n} }];"
+      },
+      "id": "calc-stuck-hours",
+      "name": "Compute Time Stuck",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "AUDIT_LOGS",
+          "mode": "name"
+        },
+        "filterByFormula": "={{ `AND({target_id}=\"${$json.order_id}\",{action}=\"watchdog_alert_sent\",DATETIME_DIFF(NOW(),{created_at},'hours')<4)` }}",
+        "options": {}
+      },
+      "id": "check-recent-alert",
+      "name": "Check AUDIT_LOGS: Recent Alert?",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        208
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "alerted",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "already-alerted",
+      "name": "Already Alerted (4hr)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=⚠️ STUCK ORDER ALERT\n\nOrder ID: {{ $('Compute Time Stuck').first().json.order_id }}\nState: {{ $('Compute Time Stuck').first().json.state }}\nTime in State: {{ $('Compute Time Stuck').first().json.time_label }}\nLast Workflow: {{ $('Compute Time Stuck').first().json.last_workflow }}\nCampaign: {{ $('Compute Time Stuck').first().json.campaign_name }}\nCustomer: {{ $('Compute Time Stuck').first().json.customer_email }}\n\nAction required — check Airtable.",
+        "additionalFields": {}
+      },
+      "id": "alert-stuck-admin",
+      "name": "Alert Admin: Stuck Order",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1600,
+        208
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "AUDIT_LOGS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "audit-stuck-alert",
+      "name": "AUDIT: Watchdog Alert Sent",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        208
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "filterByFormula": "=AND({state}=\"AI_Pending\", DATETIME_DIFF(NOW(), {created_at}, 'minutes') > 90, DATETIME_DIFF(NOW(), {created_at}, 'minutes') < 120)",
+        "options": {}
+      },
+      "id": "get-ai-pending-90",
+      "name": "Get AI_Pending Orders (T+90-120)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        400,
+        432
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-t90",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-t90-orders",
+      "name": "Any T+90 Orders?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        608,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-t90",
+      "name": "Loop T+90 Orders",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        800,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=⏰ Order {{ $json.id }} has been AI_Pending for 90 minutes. Review needed.",
+        "additionalFields": {}
+      },
+      "id": "alert-t90-admin",
+      "name": "Alert Admin: T+90 AI_Pending",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        432
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "filterByFormula": "=AND({state}=\"AI_Pending\", DATETIME_DIFF(NOW(), {created_at}, 'minutes') >= 120, {workflow_name}!=\"t120_auto_patience_msg\")",
+        "options": {}
+      },
+      "id": "get-ai-pending-120",
+      "name": "Get AI_Pending Orders (T+120+)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        400,
+        624
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-t120",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-t120-orders",
+      "name": "Any T+120 Orders?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        608,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-t120",
+      "name": "Loop T+120 Orders",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        800,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = $input.first().json;\n// Look up user_id from order — passed through to next node\nreturn [{ json: {\n  order_id: order.id,\n  user_id: Array.isArray(order.fields.user_id) ? order.fields.user_id[0] : order.fields.user_id,\n  fields: order.fields\n} }];"
+      },
+      "id": "get-customer-t120",
+      "name": "Get Customer (T+120)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "USERS",
+          "mode": "name"
+        },
+        "filterByFormula": "=RECORD_ID()=\"{{ $json.user_id }}\"",
+        "options": {}
+      },
+      "id": "lookup-user-t120",
+      "name": "Lookup User for T+120",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        624
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json[0].fields.telegram_chat_id}}",
+        "text": "High demand today — your kit will be ready shortly. Thank you for your patience 🧚",
+        "additionalFields": {}
+      },
+      "id": "send-patience-msg",
+      "name": "Send T+120 Patience Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        624
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "mark-t120-sent",
+      "name": "Mark T+120 Sent",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        624
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 60 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Stuck Orders (>24h)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get AI_Pending Orders (T+90-120)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get AI_Pending Orders (T+120+)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Stuck Orders (>24h)": {
+      "main": [
+        [
+          {
+            "node": "Any Stuck Orders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Stuck Orders?": {
+      "main": [
+        [
+          {
+            "node": "Loop Stuck Orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Loop Stuck Orders": {
+      "main": [
+        [
+          {
+            "node": "Compute Time Stuck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Compute Time Stuck": {
+      "main": [
+        [
+          {
+            "node": "Check AUDIT_LOGS: Recent Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check AUDIT_LOGS: Recent Alert?": {
+      "main": [
+        [
+          {
+            "node": "Already Alerted (4hr)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Alerted (4hr)?": {
+      "main": [
+        [
+          {
+            "node": "Alert Admin: Stuck Order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Stuck Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Admin: Stuck Order": {
+      "main": [
+        [
+          {
+            "node": "AUDIT: Watchdog Alert Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AUDIT: Watchdog Alert Sent": {
+      "main": [
+        [
+          {
+            "node": "Loop Stuck Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get AI_Pending Orders (T+90-120)": {
+      "main": [
+        [
+          {
+            "node": "Any T+90 Orders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any T+90 Orders?": {
+      "main": [
+        [
+          {
+            "node": "Loop T+90 Orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Loop T+90 Orders": {
+      "main": [
+        [
+          {
+            "node": "Alert Admin: T+90 AI_Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Alert Admin: T+90 AI_Pending": {
+      "main": [
+        [
+          {
+            "node": "Loop T+90 Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get AI_Pending Orders (T+120+)": {
+      "main": [
+        [
+          {
+            "node": "Any T+120 Orders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any T+120 Orders?": {
+      "main": [
+        [
+          {
+            "node": "Loop T+120 Orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Loop T+120 Orders": {
+      "main": [
+        [
+          {
+            "node": "Get Customer (T+120)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Get Customer (T+120)": {
+      "main": [
+        [
+          {
+            "node": "Lookup User for T+120",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup User for T+120": {
+      "main": [
+        [
+          {
+            "node": "Send T+120 Patience Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send T+120 Patience Message": {
+      "main": [
+        [
+          {
+            "node": "Mark T+120 Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark T+120 Sent": {
+      "main": [
+        [
+          {
+            "node": "Loop T+120 Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ba7cccab-9582-4519-9bcf-0cb93cfffb60",
+  "meta": {
+    "instanceId": "9f3334cea83eb8739ec0c3c2f04bb3b00d3c9a087b00bdf3d690a82db30a6c48"
+  },
+  "id": "jgYa4cPXVGYNRFIZ",
+  "tags": []
+}

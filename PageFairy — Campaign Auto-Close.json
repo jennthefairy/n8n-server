@@ -1,0 +1,1373 @@
+{
+  "name": "PageFairy — Campaign Auto-Close",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 60
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 60 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "CAMPAIGNS",
+          "mode": "name"
+        },
+        "filterByFormula": "=AND({status}=\"active\", IS_BEFORE({end_date}, NOW()))",
+        "options": {}
+      },
+      "id": "get-ended-campaigns",
+      "name": "Get Ended Campaigns",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        400,
+        304
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-campaigns",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-campaigns",
+      "name": "Any Campaigns to Process?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        608,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-campaigns",
+      "name": "Loop Each Campaign",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        800,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const campaign = $input.first().json;\nconst currentUnits = campaign.fields.current_units || 0;\nconst goalUnits = campaign.fields.goal_units || 10;\nconst goalMet = currentUnits >= goalUnits;\nreturn [{ json: {\n  campaign_id: campaign.id,\n  user_id: campaign.fields.user_id,\n  sku_code: campaign.fields.sku_code,\n  campaign_name: campaign.fields.campaign_name || campaign.id,\n  current_units: currentUnits,\n  goal_units: goalUnits,\n  goal_met: goalMet\n} }];"
+      },
+      "id": "evaluate-campaign",
+      "name": "Evaluate Campaign Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "goal-met",
+              "leftValue": "={{ $json.goal_met }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "goal-met-check",
+      "name": "Goal Met?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "filterByFormula": "=AND({campaign_id}=\"{{ $json.campaign_id }}\", {capture_status}=\"pending\")",
+        "options": {}
+      },
+      "id": "get-orders-success",
+      "name": "Get Orders (Success Path)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        128
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-orders-capture",
+      "name": "Loop Orders for Capture",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1600,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "pre-auth-capture",
+              "leftValue": "={{ $json.fields.state }}",
+              "rightValue": "Pre-Auth",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-pre-auth-capture",
+      "name": "State = Pre-Auth? (Capture)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "AUDIT_LOGS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "audit-invalid-capture",
+      "name": "AUDIT: Invalid Transition (Capture)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        -96
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=⚠️ INVALID TRANSITION\n\nOrder {{ $('State = Pre-Auth? (Capture)').first().json.id }} has state '{{ $('State = Pre-Auth? (Capture)').first().json.fields.state }}' — cannot capture. Expected Pre-Auth.",
+        "additionalFields": {}
+      },
+      "id": "alert-invalid-capture",
+      "name": "Alert Admin: Invalid Transition (Capture)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        -96
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.stripe.com/v1/payment_intents/{{ $json.fields.payment_intent_id }}/capture",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stripeApi",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "stripe-capture",
+      "name": "Stripe Capture Payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2000,
+        48
+      ],
+      "credentials": {
+        "stripeApi": {
+          "id": "Pyq4ikpSlATqVknP",
+          "name": "PageFairy Stripe"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "no-error",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "capture-success-check",
+      "name": "Capture OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "update-order-error-capture",
+      "name": "Update Order - Error (Capture)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        -48
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "AUDIT_LOGS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "audit-capture-error",
+      "name": "AUDIT: Stripe Capture Error",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        -48
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=⚠️ STRIPE CAPTURE ERROR\n\nOrder: {{ $('State = Pre-Auth? (Capture)').first().json.id }}\nError: {{ $('Capture OK?').first().json.error?.message || $('Capture OK?').first().json.error }}\nPI: {{ $('State = Pre-Auth? (Capture)').first().json.fields.payment_intent_id }}",
+        "additionalFields": {}
+      },
+      "id": "alert-capture-error",
+      "name": "Alert Admin: Capture Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2800,
+        -48
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "update-order-captured",
+      "name": "Update Order - Captured",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        48
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "CAMPAIGNS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "update-campaign-success",
+      "name": "Update Campaign - Successful",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        256
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "AUDIT_LOGS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "audit-success",
+      "name": "AUDIT: Campaign Closed Success",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        256
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.pagefairy.com/webhook/campaign-close",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({campaign_id: $('Evaluate Campaign Result').first().json.campaign_id, result: 'success'}) }}",
+        "options": {}
+      },
+      "id": "webhook-success",
+      "name": "Trigger Campaign-Close Webhook (Success)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2608,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=FULFILL CAMPAIGN\n\nCampaign: {{ $('Evaluate Campaign Result').first().json.campaign_id }}\nOrders: {{ $('Evaluate Campaign Result').first().json.current_units }}\nSKU: {{ $('Evaluate Campaign Result').first().json.sku_code }}",
+        "additionalFields": {}
+      },
+      "id": "admin-fulfill-alert",
+      "name": "Admin - Fulfill Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3200,
+        256
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "filterByFormula": "=AND({campaign_id}=\"{{ $('Evaluate Campaign Result').first().json.campaign_id }}\", {capture_status}=\"pending\")",
+        "options": {}
+      },
+      "id": "get-orders-failed",
+      "name": "Get Orders (Failed Path)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        432
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-orders-cancel",
+      "name": "Loop Orders for Cancel",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1600,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "pre-auth-cancel",
+              "leftValue": "={{ $json.fields.state }}",
+              "rightValue": "Pre-Auth",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-pre-auth-cancel",
+      "name": "State = Pre-Auth? (Cancel)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "AUDIT_LOGS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "audit-invalid-cancel",
+      "name": "AUDIT: Invalid Transition (Cancel)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        576
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=⚠️ INVALID TRANSITION\n\nOrder {{ $('State = Pre-Auth? (Cancel)').first().json.id }} has state '{{ $('State = Pre-Auth? (Cancel)').first().json.fields.state }}' — cannot cancel. Expected Pre-Auth.",
+        "additionalFields": {}
+      },
+      "id": "alert-invalid-cancel",
+      "name": "Alert Admin: Invalid Transition (Cancel)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        576
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.stripe.com/v1/payment_intents/{{ $json.fields.payment_intent_id }}/cancel",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stripeApi",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "stripe-cancel",
+      "name": "Stripe Cancel Payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2000,
+        432
+      ],
+      "credentials": {
+        "stripeApi": {
+          "id": "Pyq4ikpSlATqVknP",
+          "name": "PageFairy Stripe"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "no-error-cancel",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cancel-success-check",
+      "name": "Cancel OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "update-order-error-cancel",
+      "name": "Update Order - Error (Cancel)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        528
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "AUDIT_LOGS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "audit-cancel-error",
+      "name": "AUDIT: Stripe Cancel Error",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        528
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=⚠️ STRIPE CANCEL ERROR — CUSTOMER CHARGE UNKNOWN\n\nOrder: {{ $('State = Pre-Auth? (Cancel)').first().json.id }}\nError: {{ $('Cancel OK?').first().json.error?.message || $('Cancel OK?').first().json.error }}\nPI: {{ $('State = Pre-Auth? (Cancel)').first().json.fields.payment_intent_id }}\n\nManual review required.",
+        "additionalFields": {}
+      },
+      "id": "alert-cancel-error",
+      "name": "Alert Admin: Cancel Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2800,
+        528
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "zL1F5aEbWLbiAs7g",
+          "name": "PageFairy Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ORDERS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "update-order-cancelled",
+      "name": "Update Order - Cancelled",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        432
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "CAMPAIGNS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "update-campaign-failed",
+      "name": "Update Campaign - Failed",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        640
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appltMkhlKehBdR7w",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "AUDIT_LOGS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "audit-failed",
+      "name": "AUDIT: Campaign Closed Failed",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        640
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "VI4R9KNGfJQoa2g7",
+          "name": "PageFairy Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.pagefairy.com/webhook/campaign-close",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({campaign_id: $('Evaluate Campaign Result').first().json.campaign_id, result: 'failed'}) }}",
+        "options": {}
+      },
+      "id": "webhook-failed",
+      "name": "Trigger Campaign-Close Webhook (Failed)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2608,
+        640
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 60 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Ended Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Ended Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Any Campaigns to Process?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Campaigns to Process?": {
+      "main": [
+        [
+          {
+            "node": "Loop Each Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Loop Each Campaign": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Campaign Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Evaluate Campaign Result": {
+      "main": [
+        [
+          {
+            "node": "Goal Met?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Goal Met?": {
+      "main": [
+        [
+          {
+            "node": "Get Orders (Success Path)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Orders (Failed Path)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Orders (Success Path)": {
+      "main": [
+        [
+          {
+            "node": "Loop Orders for Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Orders for Capture": {
+      "main": [
+        [
+          {
+            "node": "State = Pre-Auth? (Capture)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Campaign - Successful",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "State = Pre-Auth? (Capture)": {
+      "main": [
+        [
+          {
+            "node": "Stripe Capture Payment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AUDIT: Invalid Transition (Capture)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AUDIT: Invalid Transition (Capture)": {
+      "main": [
+        [
+          {
+            "node": "Alert Admin: Invalid Transition (Capture)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Admin: Invalid Transition (Capture)": {
+      "main": [
+        [
+          {
+            "node": "Loop Orders for Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stripe Capture Payment": {
+      "main": [
+        [
+          {
+            "node": "Capture OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture OK?": {
+      "main": [
+        [
+          {
+            "node": "Update Order - Captured",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Order - Error (Capture)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order - Captured": {
+      "main": [
+        [
+          {
+            "node": "Loop Orders for Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order - Error (Capture)": {
+      "main": [
+        [
+          {
+            "node": "AUDIT: Stripe Capture Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AUDIT: Stripe Capture Error": {
+      "main": [
+        [
+          {
+            "node": "Alert Admin: Capture Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Admin: Capture Error": {
+      "main": [
+        [
+          {
+            "node": "Loop Orders for Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Campaign - Successful": {
+      "main": [
+        [
+          {
+            "node": "AUDIT: Campaign Closed Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AUDIT: Campaign Closed Success": {
+      "main": [
+        [
+          {
+            "node": "Trigger Campaign-Close Webhook (Success)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Campaign-Close Webhook (Success)": {
+      "main": [
+        [
+          {
+            "node": "Admin - Fulfill Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Admin - Fulfill Alert": {
+      "main": [
+        [
+          {
+            "node": "Loop Each Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Orders (Failed Path)": {
+      "main": [
+        [
+          {
+            "node": "Loop Orders for Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Orders for Cancel": {
+      "main": [
+        [
+          {
+            "node": "State = Pre-Auth? (Cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Campaign - Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "State = Pre-Auth? (Cancel)": {
+      "main": [
+        [
+          {
+            "node": "Stripe Cancel Payment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AUDIT: Invalid Transition (Cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AUDIT: Invalid Transition (Cancel)": {
+      "main": [
+        [
+          {
+            "node": "Alert Admin: Invalid Transition (Cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Admin: Invalid Transition (Cancel)": {
+      "main": [
+        [
+          {
+            "node": "Loop Orders for Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stripe Cancel Payment": {
+      "main": [
+        [
+          {
+            "node": "Cancel OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel OK?": {
+      "main": [
+        [
+          {
+            "node": "Update Order - Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Order - Error (Cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order - Cancelled": {
+      "main": [
+        [
+          {
+            "node": "Loop Orders for Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order - Error (Cancel)": {
+      "main": [
+        [
+          {
+            "node": "AUDIT: Stripe Cancel Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AUDIT: Stripe Cancel Error": {
+      "main": [
+        [
+          {
+            "node": "Alert Admin: Cancel Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Admin: Cancel Error": {
+      "main": [
+        [
+          {
+            "node": "Loop Orders for Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Campaign - Failed": {
+      "main": [
+        [
+          {
+            "node": "AUDIT: Campaign Closed Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AUDIT: Campaign Closed Failed": {
+      "main": [
+        [
+          {
+            "node": "Trigger Campaign-Close Webhook (Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Campaign-Close Webhook (Failed)": {
+      "main": [
+        [
+          {
+            "node": "Loop Each Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "43426fb3-096b-4154-9e0b-a323bd2d9c0d",
+  "meta": {
+    "instanceId": "9f3334cea83eb8739ec0c3c2f04bb3b00d3c9a087b00bdf3d690a82db30a6c48"
+  },
+  "id": "4hTLTpZsBMx2SyZU",
+  "tags": []
+}
