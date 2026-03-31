@@ -7,6 +7,8 @@ import { renderCampaignPage } from './routes/campaign.js';
 import { handleCheckout } from './routes/checkout.js';
 import { handleStripeWebhook } from './routes/webhook.js';
 import { handleWaitlist } from './routes/waitlist.js';
+import { handleTelegramWebhook } from './bot/index.js';
+import { startScheduler } from './bot/scheduler.js';
 
 const app = new Hono();
 
@@ -42,6 +44,15 @@ app.post('/api/waitlist', handleWaitlist);
 // Stripe webhook — raw body needed for signature verification
 app.post('/api/webhook/stripe', handleStripeWebhook);
 
+// Telegram bot webhook
+app.post('/api/webhook/telegram', async (c) => {
+  const secret = c.req.header('X-Telegram-Bot-Api-Secret-Token');
+  if (process.env.TELEGRAM_WEBHOOK_SECRET && secret !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  return handleTelegramWebhook(c.req.raw);
+});
+
 // Bio page
 app.get('/:username', renderBioPage);
 
@@ -60,6 +71,7 @@ app.onError((err, c) => {
 const port = parseInt(process.env.PORT || '3000', 10);
 serve({ fetch: app.fetch, port }, () => {
   console.log(`PageFairy running on http://localhost:${port}`);
+  startScheduler();
 });
 
 export default app;
