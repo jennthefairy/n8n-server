@@ -92,22 +92,18 @@ export async function handleCheckout(c: Context): Promise<Response> {
     })();
   }
 
-  if (process.env.N8N_WEBHOOK_URL) {
-    fetch(process.env.N8N_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event: 'new_order',
-        campaign_id,
-        campaign_name: campaign.fields.campaign_name,
-        customer_email: email,
-        customer_name: name,
-        amount: amount / 100,
-        units_sold: currentSold + 1,
-        goal: campaign.fields.goal_units || 10,
-      }),
-    }).catch(() => {});
-  }
+  // Send order notification via Telegram bot
+  import('../bot/notifications.js').then(({ sendOrderNotification }) => {
+    sendOrderNotification({
+      campaign_id,
+      campaign_name: campaign.fields.campaign_name,
+      customer_email: email,
+      customer_name: name,
+      amount_cents: amount,
+      current_units: currentSold + 1,
+      goal_units: campaign.fields.goal_units || 10,
+    }).catch((err: any) => console.error('Order notification failed:', err));
+  });
 
   return c.json({ success: true, checkout_url: session.url, session_id: session.id });
 }
